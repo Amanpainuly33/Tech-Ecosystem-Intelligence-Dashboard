@@ -196,6 +196,178 @@ export const getLobstersTrends = cache(async (): Promise<TrendingItem[]> => {
   }
 });
 
+// ─── Idea Researcher Types ───────────────────────────────────────────────────
+
+export interface GitHubRepo {
+  id: string;
+  name: string;
+  fullName: string;
+  description: string;
+  url: string;
+  stars: number;
+  language: string | null;
+  openIssues: number;
+  forks: number;
+}
+
+export interface DevToArticle {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  author: string;
+  reactions: number;
+  tags: string[];
+  date: string;
+}
+
+export interface RedditPost {
+  id: string;
+  title: string;
+  url: string;
+  subreddit: string;
+  score: number;
+  comments: number;
+  permalink: string;
+}
+
+export interface SOQuestion {
+  id: string;
+  title: string;
+  url: string;
+  tags: string[];
+  score: number;
+  answerCount: number;
+  isAnswered: boolean;
+}
+
+export interface IdeaSearchResult {
+  query: string;
+  github: GitHubRepo[];
+  devto: DevToArticle[];
+  reddit: RedditPost[];
+  stackoverflow: SOQuestion[];
+}
+
+// ─── Idea Researcher Search Functions ────────────────────────────────────────
+
+export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=5`,
+      {
+        next: { revalidate: 1800 },
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'developer-intelligence-dashboard',
+        },
+      }
+    );
+    if (!res.ok) throw new Error(`GitHub search failed: ${res.status}`);
+    const data = await res.json();
+    return (data.items || []).map((item: any): GitHubRepo => ({
+      id: String(item.id),
+      name: item.name,
+      fullName: item.full_name,
+      description: item.description || 'No description available.',
+      url: item.html_url,
+      stars: item.stargazers_count,
+      language: item.language,
+      openIssues: item.open_issues_count,
+      forks: item.forks_count,
+    }));
+  } catch (error) {
+    console.error('GitHub Search Error:', error);
+    return [];
+  }
+}
+
+export async function searchDevTo(query: string): Promise<DevToArticle[]> {
+  try {
+    const res = await fetch(
+      `https://dev.to/api/articles?q=${encodeURIComponent(query)}&per_page=5`,
+      { next: { revalidate: 1800 } }
+    );
+    if (!res.ok) throw new Error(`Dev.to search failed: ${res.status}`);
+    const data = await res.json();
+    return (data || []).map((item: any): DevToArticle => ({
+      id: String(item.id),
+      title: item.title,
+      description: item.description || '',
+      url: item.url,
+      author: item.user?.name || item.user?.username || 'Unknown',
+      reactions: item.positive_reactions_count || 0,
+      tags: item.tag_list || [],
+      date: item.readable_publish_date || '',
+    }));
+  } catch (error) {
+    console.error('Dev.to Search Error:', error);
+    return [];
+  }
+}
+
+export async function searchReddit(query: string): Promise<RedditPost[]> {
+  try {
+    const res = await fetch(
+      `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=5&sort=relevance&type=link`,
+      {
+        next: { revalidate: 1800 },
+        headers: { 'User-Agent': 'developer-intelligence-dashboard/1.0' },
+      }
+    );
+    if (!res.ok) throw new Error(`Reddit search failed: ${res.status}`);
+    const data = await res.json();
+    const posts = data?.data?.children || [];
+    return posts.map((child: any): RedditPost => ({
+      id: child.data.id,
+      title: child.data.title,
+      url: child.data.url,
+      subreddit: child.data.subreddit_name_prefixed,
+      score: child.data.score,
+      comments: child.data.num_comments,
+      permalink: `https://www.reddit.com${child.data.permalink}`,
+    }));
+  } catch (error) {
+    console.error('Reddit Search Error:', error);
+    return [];
+  }
+}
+
+export async function searchStackOverflow(query: string): Promise<SOQuestion[]> {
+  try {
+    const res = await fetch(
+      `https://api.stackexchange.com/2.3/search/advanced?q=${encodeURIComponent(query)}&site=stackoverflow&pagesize=5&sort=relevance&order=desc`,
+      { next: { revalidate: 1800 } }
+    );
+    if (!res.ok) throw new Error(`StackOverflow search failed: ${res.status}`);
+    const data = await res.json();
+    return (data.items || []).map((item: any): SOQuestion => ({
+      id: String(item.question_id),
+      title: item.title,
+      url: item.link,
+      tags: item.tags?.slice(0, 4) || [],
+      score: item.score,
+      answerCount: item.answer_count,
+      isAnswered: item.is_answered,
+    }));
+  } catch (error) {
+    console.error('StackOverflow Search Error:', error);
+    return [];
+  }
+}
+
+export async function searchAllPlatforms(query: string): Promise<IdeaSearchResult> {
+  const [github, devto, reddit, stackoverflow] = await Promise.all([
+    searchGitHub(query),
+    searchDevTo(query),
+    searchReddit(query),
+    searchStackOverflow(query),
+  ]);
+  return { query, github, devto, reddit, stackoverflow };
+}
+
+// ─── Dashboard Data ───────────────────────────────────────────────────────────
+
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
     try {
         // Parallel data fetching

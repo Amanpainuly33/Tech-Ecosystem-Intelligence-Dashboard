@@ -2,12 +2,10 @@
 
 import { motion } from "framer-motion";
 import { Search, Command } from "lucide-react";
-import { useSearch } from "@/lib/search-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, KeyboardEvent } from "react";
 
 function SearchBar() {
-  const { openPalette } = useSearch();
   const router = useRouter();
   const [value, setValue] = useState("");
 
@@ -18,18 +16,14 @@ function SearchBar() {
   };
 
   return (
-    <div
-      className="relative max-w-md mx-auto mt-8 group cursor-text"
-      onClick={openPalette}
-    >
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all group-hover:bg-white/8">
+    <div className="relative max-w-md mx-auto mt-8 group cursor-text">
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 focus-within:border-blue-500/40 transition-all">
         <Search className="w-4 h-4 text-zinc-500" />
         <input
           value={value}
-          onChange={(e) => { e.stopPropagation(); setValue(e.target.value); }}
-          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search trends... or press"
+          placeholder="Research a project idea... (e.g. 'trello clone')"
           className="flex-1 bg-transparent text-sm text-zinc-400 placeholder-zinc-600 outline-none"
         />
         <div className="flex items-center gap-1 text-xs text-zinc-600 border border-white/10 rounded px-1.5 py-0.5 shrink-0">
@@ -64,15 +58,15 @@ export function DashboardHeader() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="inline-block mb-4 px-4 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+        {/* <div className="inline-block mb-4 px-4 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
           <span className="text-xs font-semibold text-blue-400 tracking-wider uppercase">
             Global Developer Intelligence
           </span>
-        </div>
+        </div> */}
         <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-          Where should you <br />
+          Global Developer <br />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-            focus right now?
+            Intelligence
           </span>
         </h1>
         <p className="text-xl text-zinc-400 max-w-2xl mx-auto">

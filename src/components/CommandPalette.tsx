@@ -81,7 +81,7 @@ export function CommandPalette() {
             ref={inputRef}
             value={query}
             onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
-            placeholder="Search across GitHub, HN, Dev.to..."
+            placeholder="Research a project idea... (e.g. 'trello clone')"
             className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
           />
           {query && (
