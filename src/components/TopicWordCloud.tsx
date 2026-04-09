@@ -10,7 +10,7 @@ export function TopicWordCloud({ topics }: { topics: AggregatedTopic[] }) {
         <GlassCard>
             <h3 className="text-xl font-bold mb-6">Top Trending Topics</h3>
             <div className="flex flex-wrap gap-2">
-                {displayTopics.map((topic, index) => (
+                {displayTopics.map((topic) => (
                     <span 
                         key={topic.canonicalName}
                         className="px-3 py-1.5 rounded-lg bg-white/5 text-sm font-medium text-zinc-300 border border-white/5 hover:border-white/20 hover:text-white transition-colors cursor-default"

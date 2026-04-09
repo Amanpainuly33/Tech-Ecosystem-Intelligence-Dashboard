@@ -51,7 +51,7 @@ export function normalizeTag(tag: string): string {
   const lowerTag = tag.trim().toLowerCase();
   
   // Remove common prefixes/suffixes if needed (e.g., "-lang")
-  let stripped = lowerTag.replace(/-lang$/, "");
+  const stripped = lowerTag.replace(/-lang$/, "");
   
   // Lookup in aliases dictionary
   return TAG_ALIASES[stripped] || stripped;

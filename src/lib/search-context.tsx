@@ -1,7 +1,7 @@
 "use client";
 
 import { TrendingItem } from "@/lib/api";
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 interface SearchContextValue {
   allItems: TrendingItem[];
@@ -25,6 +25,17 @@ export function SearchProvider({
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <SearchContext.Provider

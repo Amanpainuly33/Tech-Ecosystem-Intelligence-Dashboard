@@ -37,17 +37,18 @@ function SearchBar() {
 
 export function DashboardHeader() {
   const [mounted, setMounted] = useState(false);
-  const [date, setDate] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    setDate(new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }));
   }, []);
+
+  const date = mounted ? new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }) : "";
 
   if (!mounted) return <header className="mb-10 min-h-[300px]" />;
 

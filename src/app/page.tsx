@@ -1,6 +1,5 @@
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { DashboardClient } from "@/components/DashboardClient";
-import { TrendCard } from "@/components/TrendCard";
 import { getDashboardData } from "@/lib/api";
 import { SearchProvider } from "@/lib/search-context";
 import { CommandPalette } from "@/components/CommandPalette";

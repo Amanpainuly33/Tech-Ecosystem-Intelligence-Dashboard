@@ -2,7 +2,7 @@
 
 import { useSearch } from "@/lib/search-context";
 import { TrendingItem } from "@/lib/api";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Github, FileCode, Newspaper, Terminal, Anchor, X, ArrowRight } from "lucide-react";
 
@@ -35,14 +35,17 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const results = query.trim().length < 2 ? [] : allItems.filter((item) => {
+  const results = useMemo(() => {
+    if (query.trim().length < 2) return [];
     const q = query.toLowerCase();
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.description?.toLowerCase().includes(q) ||
-      item.tags?.some((t) => t.toLowerCase().includes(q))
-    );
-  }).slice(0, 12);
+    return allItems.filter((item) => {
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q) ||
+        item.tags?.some((t) => t.toLowerCase().includes(q))
+      );
+    }).slice(0, 12);
+  }, [allItems, query]);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,11 +59,22 @@ export function CommandPalette() {
     const handler = (e: KeyboardEvent) => {
       if (!isOpen) return;
       if (e.key === "Escape") closePalette();
-      if (e.key === "ArrowDown") { e.preventDefault(); setCursor((c) => Math.min(c + 1, results.length - 1)); }
-      if (e.key === "ArrowUp")   { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }
-      if (e.key === "Enter" && results[cursor]) {
-        window.open(results[cursor].url, "_blank");
-        closePalette();
+      if (e.key === "ArrowDown") { 
+        e.preventDefault(); 
+        setCursor((c) => Math.min(c + 1, results.length - 1)); 
+      }
+      if (e.key === "ArrowUp") { 
+        e.preventDefault(); 
+        setCursor((c) => Math.max(c - 1, 0)); 
+      }
+      if (e.key === "Enter") {
+        if (query.trim()) {
+           router.push(`/search?q=${encodeURIComponent(query)}`);
+           closePalette();
+        } else if (results[cursor]) {
+           window.open(results[cursor].url, "_blank");
+           closePalette();
+        }
       }
     };
     window.addEventListener("keydown", handler);

@@ -2,9 +2,8 @@
 
 import { TrendingItem } from "@/lib/api";
 import { GlassCard } from "./ui/GlassCard";
-import { Github, FileCode, MessageCircle, Newspaper, Terminal, Anchor } from "lucide-react";
+import { Github, FileCode, Newspaper, Terminal, Anchor } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 const SourceIcon = ({ source }: { source: TrendingItem['source'] }) => {
   switch (source) {

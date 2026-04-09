@@ -23,6 +23,96 @@ export interface DashboardData {
   aggregatedTopics: AggregatedTopic[];
 }
 
+// ─── API Response Types ──────────────────────────────────────────────────────
+
+interface StackOverflowItem {
+  question_id: number;
+  title: string;
+  score: number;
+  answer_count: number;
+  link: string;
+  view_count: number;
+  tags: string[];
+  owner: {
+    display_name: string;
+  };
+  creation_date: number;
+  is_answered: boolean;
+}
+
+interface DevToItem {
+  id: number;
+  title: string;
+  description: string;
+  url: string;
+  positive_reactions_count: number;
+  tag_list: string[];
+  user: {
+    name: string;
+  };
+  readable_publish_date: string;
+}
+
+interface HackerNewsItem {
+  id: number;
+  title: string;
+  by: string;
+  url?: string;
+  score: number;
+  time: number;
+}
+
+interface LobstersItem {
+  short_id: string;
+  title: string;
+  url: string;
+  score: number;
+  comment_count: number;
+  tags: string[];
+  created_at: string;
+  submitter_user: {
+    username: string;
+  };
+}
+
+interface GitHubSearchItem {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  html_url: string;
+  stargazers_count: number;
+  language: string | null;
+  open_issues_count: number;
+  forks_count: number;
+}
+
+interface DevToSearchItem {
+  id: number;
+  title: string;
+  description: string | null;
+  url: string;
+  user?: {
+    name?: string;
+    username?: string;
+  };
+  positive_reactions_count: number;
+  tag_list: string[];
+  readable_publish_date: string;
+}
+
+interface RedditSearchChild {
+  data: {
+    id: string;
+    title: string;
+    url: string;
+    subreddit_name_prefixed: string;
+    score: number;
+    num_comments: number;
+    permalink: string;
+  };
+}
+
 import * as cheerio from 'cheerio';
 
 // GitHub Trending Scraper (Official Page)
@@ -89,7 +179,7 @@ export const getStackOverflowTrends = cache(async (): Promise<TrendingItem[]> =>
     if (!res.ok) throw new Error('Failed to fetch StackOverflow trends');
     const data = await res.json();
 
-    return data.items.map((item: any) => ({
+    return data.items.map((item: StackOverflowItem) => ({
       id: String(item.question_id),
       title: item.title,
       description: `Score: ${item.score} | Answers: ${item.answer_count}`,
@@ -117,7 +207,7 @@ export const getDevToTrends = cache(async (): Promise<TrendingItem[]> => {
     if (!res.ok) throw new Error('Failed to fetch Dev.to trends');
     const data = await res.json();
 
-    return data.map((item: any) => ({
+    return data.map((item: DevToItem) => ({
       id: String(item.id),
       title: item.title,
       description: item.description,
@@ -153,7 +243,7 @@ export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
       return storyRes.json();
     }));
 
-    return stories.map((item: any) => ({
+    return stories.map((item: HackerNewsItem) => ({
       id: String(item.id),
       title: item.title,
       description: `By ${item.by}`,
@@ -180,7 +270,7 @@ export const getLobstersTrends = cache(async (): Promise<TrendingItem[]> => {
     if (!res.ok) throw new Error('Failed to fetch Lobsters trends');
     const data = await res.json();
 
-    return data.slice(0, 5).map((item: any) => ({
+    return data.slice(0, 5).map((item: LobstersItem) => ({
       id: item.short_id,
       title: item.title,
       description: `u/${item.submitter_user.username} • ${item.comment_count} comments`,
@@ -265,7 +355,7 @@ export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
     );
     if (!res.ok) throw new Error(`GitHub search failed: ${res.status}`);
     const data = await res.json();
-    return (data.items || []).map((item: any): GitHubRepo => ({
+    return (data.items || []).map((item: GitHubSearchItem): GitHubRepo => ({
       id: String(item.id),
       name: item.name,
       fullName: item.full_name,
@@ -290,7 +380,7 @@ export async function searchDevTo(query: string): Promise<DevToArticle[]> {
     );
     if (!res.ok) throw new Error(`Dev.to search failed: ${res.status}`);
     const data = await res.json();
-    return (data || []).map((item: any): DevToArticle => ({
+    return (data || []).map((item: DevToSearchItem): DevToArticle => ({
       id: String(item.id),
       title: item.title,
       description: item.description || '',
@@ -318,7 +408,7 @@ export async function searchReddit(query: string): Promise<RedditPost[]> {
     if (!res.ok) throw new Error(`Reddit search failed: ${res.status}`);
     const data = await res.json();
     const posts = data?.data?.children || [];
-    return posts.map((child: any): RedditPost => ({
+    return posts.map((child: RedditSearchChild): RedditPost => ({
       id: child.data.id,
       title: child.data.title,
       url: child.data.url,
@@ -341,7 +431,7 @@ export async function searchStackOverflow(query: string): Promise<SOQuestion[]> 
     );
     if (!res.ok) throw new Error(`StackOverflow search failed: ${res.status}`);
     const data = await res.json();
-    return (data.items || []).map((item: any): SOQuestion => ({
+    return (data.items || []).map((item: StackOverflowItem): SOQuestion => ({
       id: String(item.question_id),
       title: item.title,
       url: item.link,
