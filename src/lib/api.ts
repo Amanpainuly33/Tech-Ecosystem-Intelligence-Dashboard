@@ -111,9 +111,9 @@ interface RedditSearchChild {
     num_comments: number;
     permalink: string;
   };
-}
-
 import * as cheerio from 'cheerio';
+
+const COMMON_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
 
 // GitHub Trending Scraper (Official Page)
 export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
@@ -121,7 +121,7 @@ export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
     const res = await fetch('https://github.com/trending?since=weekly', {
       next: { revalidate: 3600 },
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': COMMON_USER_AGENT
       }
     });
 
@@ -173,7 +173,8 @@ export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
 export const getStackOverflowTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://api.stackexchange.com/2.3/questions?order=desc&sort=hot&site=stackoverflow&pagesize=5', {
-      next: { revalidate: 3600 }
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': COMMON_USER_AGENT }
     });
 
     if (!res.ok) throw new Error('Failed to fetch StackOverflow trends');
@@ -201,7 +202,8 @@ export const getStackOverflowTrends = cache(async (): Promise<TrendingItem[]> =>
 export const getDevToTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://dev.to/api/articles?top=7&per_page=5', {
-      next: { revalidate: 3600 }
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': COMMON_USER_AGENT }
     });
 
     if (!res.ok) throw new Error('Failed to fetch Dev.to trends');
@@ -229,19 +231,27 @@ export const getDevToTrends = cache(async (): Promise<TrendingItem[]> => {
 export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const topStoriesRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty', {
-      next: { revalidate: 3600 }
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': COMMON_USER_AGENT }
     });
     
     if (!topStoriesRes.ok) throw new Error('Failed to fetch HN IDs');
     const ids = await topStoriesRes.json();
     const top5Ids = ids.slice(0, 5);
 
-    const stories = await Promise.all(top5Ids.map(async (id: number) => {
+    const storiesRes = await Promise.allSettled(top5Ids.map(async (id: number) => {
       const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`, {
-        next: { revalidate: 3600 }
+        next: { revalidate: 3600 },
+        headers: { 'User-Agent': COMMON_USER_AGENT }
       });
+      if (!storyRes.ok) throw new Error(`HN item ${id} failed`);
       return storyRes.json();
     }));
+
+    const stories = storiesRes
+      .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled')
+      .map(res => res.value)
+      .filter(item => item !== null && item !== undefined);
 
     return stories.map((item: HackerNewsItem) => ({
       id: String(item.id),
@@ -264,7 +274,8 @@ export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
 export const getLobstersTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://lobste.rs/hottest.json', {
-      next: { revalidate: 3600 }
+      next: { revalidate: 3600 },
+      headers: { 'User-Agent': COMMON_USER_AGENT }
     });
 
     if (!res.ok) throw new Error('Failed to fetch Lobsters trends');
@@ -349,7 +360,7 @@ export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
         next: { revalidate: 1800 },
         headers: {
           'Accept': 'application/vnd.github+json',
-          'User-Agent': 'developer-intelligence-dashboard',
+          'User-Agent': COMMON_USER_AGENT,
         },
       }
     );
@@ -376,7 +387,10 @@ export async function searchDevTo(query: string): Promise<DevToArticle[]> {
   try {
     const res = await fetch(
       `https://dev.to/api/articles?q=${encodeURIComponent(query)}&per_page=5`,
-      { next: { revalidate: 1800 } }
+      { 
+        next: { revalidate: 1800 },
+        headers: { 'User-Agent': COMMON_USER_AGENT } 
+      }
     );
     if (!res.ok) throw new Error(`Dev.to search failed: ${res.status}`);
     const data = await res.json();
@@ -399,10 +413,13 @@ export async function searchDevTo(query: string): Promise<DevToArticle[]> {
 export async function searchReddit(query: string): Promise<RedditPost[]> {
   try {
     const res = await fetch(
-      `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=5&sort=relevance&type=link`,
+      `https://old.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=5&sort=relevance&type=link`,
       {
         next: { revalidate: 1800 },
-        headers: { 'User-Agent': 'developer-intelligence-dashboard/1.0' },
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        },
       }
     );
     if (!res.ok) throw new Error(`Reddit search failed: ${res.status}`);
@@ -427,7 +444,10 @@ export async function searchStackOverflow(query: string): Promise<SOQuestion[]> 
   try {
     const res = await fetch(
       `https://api.stackexchange.com/2.3/search/advanced?q=${encodeURIComponent(query)}&site=stackoverflow&pagesize=5&sort=relevance&order=desc`,
-      { next: { revalidate: 1800 } }
+      { 
+        next: { revalidate: 1800 },
+        headers: { 'User-Agent': COMMON_USER_AGENT } 
+      }
     );
     if (!res.ok) throw new Error(`StackOverflow search failed: ${res.status}`);
     const data = await res.json();

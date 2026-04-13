@@ -47,12 +47,42 @@ export async function POST(req: NextRequest) {
 
     prompt += "OUTPUT REQUIREMENT: Your output MUST be ONLY a single Markdown table. Do not include any introductory prose, overviews, summaries, or recommendations. The table should have categories as rows (e.g., Primary Use Case, Key Features, Tech Stack, Deployment, Maintenance Status, Stars/Forks) and the repositories as columns. Keep cell contents extremely concise (use ultra-brief phrases or bullet points where necessary) to optimize readability and minimize token usage.";
 
-    // Call Gemini
+    // Call Gemini with Retries and Fallback
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
+    
+    let responseText = "";
+    let lastError: any;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    for (let i = 0; i < modelsToTry.length; i++) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelsToTry[i] }); 
+        const result = await model.generateContent(prompt);
+        responseText = result.response.text();
+        break; // Success
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Compare API] Attempt ${i + 1} with ${modelsToTry[i]} failed:`, error?.message || error);
+        
+        if (i === modelsToTry.length - 1) break; // Don't sleep on last attempt
+
+        const isRetryable = error?.status === 503 || error?.status === 429 || 
+                            String(error).includes("503") || String(error).includes("429") ||
+                            String(error).includes("fetch failed");
+                            
+        if (isRetryable) {
+          const delay = (i + 1) * 2000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw error; // Not retryable (e.g. invalid API key)
+        }
+      }
+    }
+
+    if (!responseText) {
+      console.error("Comparison API final failure:", lastError);
+      return NextResponse.json({ error: "Failed to generate comparison after retries. The AI model might be experiencing high demand." }, { status: 503 });
+    }
 
     return NextResponse.json({ markdown: responseText });
   } catch (error) {
