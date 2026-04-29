@@ -22,11 +22,9 @@ export function aggregateTrends(items: TrendingItem[]): AggregatedTopic[] {
   for (const item of items) {
     const explicitTags = (item.tags || []).map(normalizeTag);
     const implicitTags = extractTagsFromText(`${item.title} ${item.description}`);
-    
-    // Combine and deduplicate tags
+
     let allTags = Array.from(new Set([...explicitTags, ...implicitTags]));
-    
-    // Better fallback: skip generic titles, only use if descriptive
+
     if (allTags.length === 0 && item.title.length > 10) {
        const firstWord = item.title.split(/[\s/_-]+/)[0];
        if (firstWord && firstWord.length > 2) {
@@ -54,23 +52,21 @@ export function aggregateTrends(items: TrendingItem[]): AggregatedTopic[] {
         
         if (!topic.mentions.find(m => m.id === item.id)) {
              topic.mentions.push(item);
-             // Use source weight instead of flat 1 point
+             
              topic.score += weight;
         }
     }
   }
 
-  // Calculate final cross-platform multipliers
   for (const topic of topicsMap.values()) {
       const sources = new Set(topic.mentions.map(m => m.source));
 
-      // 1 source = 1x, 2 sources = 1.6x, 3 sources = 2.1x, etc.
       const multiplier = 1 + (Math.log2(sources.size) * 0.8);
       topic.score = Number((topic.score * multiplier).toFixed(1));
   }
 
   return Array.from(topicsMap.values())
     .sort((a, b) => b.score - a.score)
-    .filter(t => t.score > 0.5); // Filter out very low signal topics
+    .filter(t => t.score > 0.5); 
 }
 

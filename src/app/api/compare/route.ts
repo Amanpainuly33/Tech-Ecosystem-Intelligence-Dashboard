@@ -7,17 +7,15 @@ export async function POST(req: NextRequest) {
     const { repos } = body;
     
     if (!repos || !Array.isArray(repos) || repos.length < 2) {
-      return NextResponse.json({ error: "Provide at least 2 repositories to compare." }, { status: 400 });
+      return NextResponse.json({ error: "Need at least 2 repos to compare" }, { status: 400 });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
+      return NextResponse.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
     }
 
-    // Safely parse up to 5 repos just to prevent extremely massive payloads
     const limitedRepos = repos.slice(0, 5);
 
-    // Fetch READMEs
     const fetchReadme = async (fullName: string) => {
       try {
         const res = await fetch(`https://api.github.com/repos/${fullName}/readme`, {
@@ -35,7 +33,6 @@ export async function POST(req: NextRequest) {
 
     const readmes = await Promise.all(limitedRepos.map((repo) => fetchReadme(repo.fullName)));
 
-    // Build the Prompt
     let prompt = "You are a technical assistant helping developers choose open-source libraries. Compare the following GitHub repositories based on their README files and metadata.\n\n";
 
     limitedRepos.forEach((repo, index) => {
@@ -47,24 +44,23 @@ export async function POST(req: NextRequest) {
 
     prompt += "OUTPUT REQUIREMENT: Your output MUST be ONLY a single Markdown table. Do not include any introductory prose, overviews, summaries, or recommendations. The table should have categories as rows (e.g., Primary Use Case, Key Features, Tech Stack, Deployment, Maintenance Status, Stars/Forks) and the repositories as columns. Keep cell contents extremely concise (use ultra-brief phrases or bullet points where necessary) to optimize readability and minimize token usage.";
 
-    // Call Gemini with Retries and Fallback
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
+    const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
     
     let responseText = "";
     let lastError: any;
 
-    for (let i = 0; i < modelsToTry.length; i++) {
+    for (let i = 0; i < models.length; i++) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelsToTry[i] }); 
+        const model = genAI.getGenerativeModel({ model: models[i] }); 
         const result = await model.generateContent(prompt);
         responseText = result.response.text();
-        break; // Success
+        break;
       } catch (error: any) {
         lastError = error;
-        console.warn(`[Compare API] Attempt ${i + 1} with ${modelsToTry[i]} failed:`, error?.message || error);
+        console.warn(`Attempt ${i + 1} with ${models[i]} failed:`, error?.message || error);
         
-        if (i === modelsToTry.length - 1) break; // Don't sleep on last attempt
+        if (i === models.length - 1) break;
 
         const isRetryable = error?.status === 503 || error?.status === 429 || 
                             String(error).includes("503") || String(error).includes("429") ||
@@ -74,14 +70,14 @@ export async function POST(req: NextRequest) {
           const delay = (i + 1) * 2000;
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          throw error; // Not retryable (e.g. invalid API key)
+          throw error; 
         }
       }
     }
 
     if (!responseText) {
-      console.error("Comparison API final failure:", lastError);
-      return NextResponse.json({ error: "Failed to generate comparison after retries. The AI model might be experiencing high demand." }, { status: 503 });
+      console.error("Comparison failed:", lastError);
+      return NextResponse.json({ error: "Failed to generate comparison. Please try again later." }, { status: 503 });
     }
 
     return NextResponse.json({ markdown: responseText });

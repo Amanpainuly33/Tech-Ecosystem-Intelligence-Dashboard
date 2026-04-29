@@ -50,10 +50,7 @@ export function normalizeTag(tag: string): string {
   if (!tag) return "";
   const lowerTag = tag.trim().toLowerCase();
   
-  // Remove common prefixes/suffixes if needed (e.g., "-lang")
   const stripped = lowerTag.replace(/-lang$/, "");
-  
-  // Lookup in aliases dictionary
   return TAG_ALIASES[stripped] || stripped;
 }
 
@@ -61,7 +58,6 @@ export function extractTagsFromText(text: string): string[] {
     const textLower = text.toLowerCase();
     const foundTags = new Set<string>();
     
-    // To be thorough, we check BOTH keys (aliases) and values (canonical)
     const keywords = Array.from(new Set([
         ...Object.keys(TAG_ALIASES),
         ...Object.values(TAG_ALIASES)
@@ -69,8 +65,6 @@ export function extractTagsFromText(text: string): string[] {
     
     keywords.forEach((keyword) => {
         const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // If keyword ends with a special char (like # or +), \b won't match. 
-        // We use a custom boundary: (start of string or non-word) + keyword + (end of string or non-word/space)
         let regex: RegExp;
         if (/[#+]$/.test(keyword)) {
             regex = new RegExp(`(^|[^a-zA-Z0-9])${escapedKeyword}([^a-zA-Z0-9]|$)`, 'i');

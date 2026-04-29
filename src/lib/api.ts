@@ -7,7 +7,7 @@ export interface TrendingItem {
   description: string;
   url: string;
   source: 'GitHub' | 'StackOverflow' | 'Dev.to' | 'HackerNews' | 'Lobsters';
-  meta?: string; // e.g., "1.2k stars", "50 comments"
+  meta?: string; 
   tags?: string[];
   author?: string;
   date?: string;
@@ -22,8 +22,6 @@ export interface DashboardData {
   allItems: TrendingItem[];
   aggregatedTopics: AggregatedTopic[];
 }
-
-// ─── API Response Types ──────────────────────────────────────────────────────
 
 interface StackOverflowItem {
   question_id: number;
@@ -115,19 +113,18 @@ interface RedditSearchChild {
 
 import * as cheerio from 'cheerio';
 
-const COMMON_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+const defaultUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
 
-// GitHub Trending Scraper (Official Page)
 export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://github.com/trending?since=weekly', {
       next: { revalidate: 3600 },
       headers: {
-        'User-Agent': COMMON_USER_AGENT
+        'User-Agent': defaultUserAgent
       }
     });
 
-    if (!res.ok) throw new Error('Failed to fetch GitHub trends page');
+    if (!res.ok) throw new Error('Could not fetch github trends');
     const html = await res.text();
     const $ = cheerio.load(html);
     const trends: TrendingItem[] = [];
@@ -140,20 +137,18 @@ export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
       const author = relativeUrl?.split('/')[1] || '';
       const name = relativeUrl?.split('/')[2] || '';
       const description = $(element).find('p').text().trim();
-      
-      // Get stars today/this week
+
       const metaText = $(element).find('.f6.color-fg-muted.mt-2').text();
       const starsMatch = metaText.match(/(\d+,?\d*) stars today/) || metaText.match(/(\d+,?\d*) stars this week/);
       const starsGained = starsMatch ? `+${starsMatch[1]} stars` : 'Trending';
-      
-      // Language
+
       const language = $(element).find('[itemprop="programmingLanguage"]').text().trim();
 
       if (titleElement.length) {
         trends.push({
             id: relativeUrl || name,
             title: `${author}/${name}`,
-            description: description || 'No description available',
+            description: description || 'No description',
             url: `https://github.com${relativeUrl}`,
             source: 'GitHub',
             meta: starsGained,
@@ -165,21 +160,19 @@ export const getGitHubTrends = cache(async (): Promise<TrendingItem[]> => {
 
     return trends;
   } catch (error) {
-    console.error('GitHub Trending Scraper Error:', error);
+    console.error('Error fetching github trends:', error);
     return [];
   }
 });
 
-// StackExchange API
-// Docs: https://api.stackexchange.com/docs/questions
 export const getStackOverflowTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://api.stackexchange.com/2.3/questions?order=desc&sort=hot&site=stackoverflow&pagesize=5', {
       next: { revalidate: 3600 },
-      headers: { 'User-Agent': COMMON_USER_AGENT }
+      headers: { 'User-Agent': defaultUserAgent }
     });
 
-    if (!res.ok) throw new Error('Failed to fetch StackOverflow trends');
+    if (!res.ok) throw new Error('Failed to load stackoverflow trends');
     const data = await res.json();
 
     return data.items.map((item: StackOverflowItem) => ({
@@ -194,21 +187,19 @@ export const getStackOverflowTrends = cache(async (): Promise<TrendingItem[]> =>
       date: new Date(item.creation_date * 1000).toLocaleDateString(),
     }));
   } catch (error) {
-    console.error('StackOverflow API Error:', error);
+    console.error('SO fetch error:', error);
     return [];
   }
 });
 
-// Dev.to API
-// Docs: https://developers.forem.com/api/v1#tag/articles/operation/getArticles
 export const getDevToTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://dev.to/api/articles?top=7&per_page=5', {
       next: { revalidate: 3600 },
-      headers: { 'User-Agent': COMMON_USER_AGENT }
+      headers: { 'User-Agent': defaultUserAgent }
     });
 
-    if (!res.ok) throw new Error('Failed to fetch Dev.to trends');
+    if (!res.ok) throw new Error('Failed to load dev.to articles');
     const data = await res.json();
 
     return data.map((item: DevToItem) => ({
@@ -223,18 +214,16 @@ export const getDevToTrends = cache(async (): Promise<TrendingItem[]> => {
       date: item.readable_publish_date,
     }));
   } catch (error) {
-    console.error('Dev.to API Error:', error);
+    console.error('Dev.to fetch error:', error);
     return [];
   }
 });
 
-// Hacker News API
-// Docs: https://github.com/HackerNews/API
 export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const topStoriesRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty', {
       next: { revalidate: 3600 },
-      headers: { 'User-Agent': COMMON_USER_AGENT }
+      headers: { 'User-Agent': defaultUserAgent }
     });
     
     if (!topStoriesRes.ok) throw new Error('Failed to fetch HN IDs');
@@ -244,7 +233,7 @@ export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
     const storiesRes = await Promise.allSettled(top5Ids.map(async (id: number) => {
       const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`, {
         next: { revalidate: 3600 },
-        headers: { 'User-Agent': COMMON_USER_AGENT }
+        headers: { 'User-Agent': defaultUserAgent }
       });
       if (!storyRes.ok) throw new Error(`HN item ${id} failed`);
       return storyRes.json();
@@ -266,21 +255,19 @@ export const getHackerNewsTrends = cache(async (): Promise<TrendingItem[]> => {
       date: new Date(item.time * 1000).toLocaleDateString(),
     }));
   } catch (error) {
-    console.error('HackerNews API Error:', error);
+    console.error('HN fetch error:', error);
     return [];
   }
 });
 
-// Lobsters API
-// Docs: https://lobste.rs/about
 export const getLobstersTrends = cache(async (): Promise<TrendingItem[]> => {
   try {
     const res = await fetch('https://lobste.rs/hottest.json', {
       next: { revalidate: 3600 },
-      headers: { 'User-Agent': COMMON_USER_AGENT }
+      headers: { 'User-Agent': defaultUserAgent }
     });
 
-    if (!res.ok) throw new Error('Failed to fetch Lobsters trends');
+    if (!res.ok) throw new Error('Failed to load lobsters data');
     const data = await res.json();
 
     return data.slice(0, 5).map((item: LobstersItem) => ({
@@ -294,12 +281,10 @@ export const getLobstersTrends = cache(async (): Promise<TrendingItem[]> => {
       date: new Date(item.created_at).toLocaleDateString(),
     }));
   } catch (error) {
-    console.error('Lobsters API Error:', error);
+    console.error('Lobsters fetch error:', error);
     return [];
   }
 });
-
-// ─── Idea Researcher Types ───────────────────────────────────────────────────
 
 export interface GitHubRepo {
   id: string;
@@ -352,8 +337,6 @@ export interface IdeaSearchResult {
   stackoverflow: SOQuestion[];
 }
 
-// ─── Idea Researcher Search Functions ────────────────────────────────────────
-
 export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
   try {
     const res = await fetch(
@@ -362,17 +345,17 @@ export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
         next: { revalidate: 1800 },
         headers: {
           'Accept': 'application/vnd.github+json',
-          'User-Agent': COMMON_USER_AGENT,
+          'User-Agent': defaultUserAgent,
         },
       }
     );
-    if (!res.ok) throw new Error(`GitHub search failed: ${res.status}`);
+    if (!res.ok) throw new Error(`github search failed: ${res.status}`);
     const data = await res.json();
     return (data.items || []).map((item: GitHubSearchItem): GitHubRepo => ({
       id: String(item.id),
       name: item.name,
       fullName: item.full_name,
-      description: item.description || 'No description available.',
+      description: item.description || 'No description',
       url: item.html_url,
       stars: item.stargazers_count,
       language: item.language,
@@ -380,7 +363,7 @@ export async function searchGitHub(query: string): Promise<GitHubRepo[]> {
       forks: item.forks_count,
     }));
   } catch (error) {
-    console.error('GitHub Search Error:', error);
+    console.error('Error searching github:', error);
     return [];
   }
 }
@@ -391,10 +374,10 @@ export async function searchDevTo(query: string): Promise<DevToArticle[]> {
       `https://dev.to/api/articles?q=${encodeURIComponent(query)}&per_page=5`,
       { 
         next: { revalidate: 1800 },
-        headers: { 'User-Agent': COMMON_USER_AGENT } 
+        headers: { 'User-Agent': defaultUserAgent } 
       }
     );
-    if (!res.ok) throw new Error(`Dev.to search failed: ${res.status}`);
+    if (!res.ok) throw new Error(`dev.to search failed: ${res.status}`);
     const data = await res.json();
     return (data || []).map((item: DevToSearchItem): DevToArticle => ({
       id: String(item.id),
@@ -407,7 +390,7 @@ export async function searchDevTo(query: string): Promise<DevToArticle[]> {
       date: item.readable_publish_date || '',
     }));
   } catch (error) {
-    console.error('Dev.to Search Error:', error);
+    console.error('Error searching dev.to:', error);
     return [];
   }
 }
@@ -424,7 +407,7 @@ export async function searchReddit(query: string): Promise<RedditPost[]> {
         },
       }
     );
-    if (!res.ok) throw new Error(`Reddit search failed: ${res.status}`);
+    if (!res.ok) throw new Error(`reddit search failed: ${res.status}`);
     const data = await res.json();
     const posts = data?.data?.children || [];
     return posts.map((child: RedditSearchChild): RedditPost => ({
@@ -437,7 +420,7 @@ export async function searchReddit(query: string): Promise<RedditPost[]> {
       permalink: `https://www.reddit.com${child.data.permalink}`,
     }));
   } catch (error) {
-    console.error('Reddit Search Error:', error);
+    console.error('Error searching reddit:', error);
     return [];
   }
 }
@@ -448,10 +431,10 @@ export async function searchStackOverflow(query: string): Promise<SOQuestion[]> 
       `https://api.stackexchange.com/2.3/search/advanced?q=${encodeURIComponent(query)}&site=stackoverflow&pagesize=5&sort=relevance&order=desc`,
       { 
         next: { revalidate: 1800 },
-        headers: { 'User-Agent': COMMON_USER_AGENT } 
+        headers: { 'User-Agent': defaultUserAgent } 
       }
     );
-    if (!res.ok) throw new Error(`StackOverflow search failed: ${res.status}`);
+    if (!res.ok) throw new Error(`so search failed: ${res.status}`);
     const data = await res.json();
     return (data.items || []).map((item: StackOverflowItem): SOQuestion => ({
       id: String(item.question_id),
@@ -463,7 +446,7 @@ export async function searchStackOverflow(query: string): Promise<SOQuestion[]> 
       isAnswered: item.is_answered,
     }));
   } catch (error) {
-    console.error('StackOverflow Search Error:', error);
+    console.error('Error searching stackoverflow:', error);
     return [];
   }
 }
@@ -478,11 +461,9 @@ export async function searchAllPlatforms(query: string): Promise<IdeaSearchResul
   return { query, github, devto, reddit, stackoverflow };
 }
 
-// ─── Dashboard Data ───────────────────────────────────────────────────────────
-
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
     try {
-        // Parallel data fetching
+        
         const [trendingRepos, hotQuestions, topPosts, techNews, lobstersNews] = await Promise.all([
             getGitHubTrends(),
             getStackOverflowTrends(),
@@ -504,7 +485,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
             aggregatedTopics
         }
     } catch (error) {
-        console.error('getDashboardData Critical Error:', error);
+        console.error('Failed to load dashboard data:', error);
         return {
             trendingRepos: [],
             hotQuestions: [],

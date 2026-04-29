@@ -11,21 +11,47 @@ export default async function Home() {
 
   return (
     <SearchProvider items={data.allItems}>
-      {/* CMD+K palette available site-wide */}
       <CommandPalette />
 
-      <main className="min-h-screen bg-black text-white p-4 md:p-8 bg-grid-pattern relative overflow-hidden">
-        {/* Ambient Background */}
+      <main
+        className="min-h-screen p-4 md:p-8 bg-grid-pattern relative overflow-hidden"
+        style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}
+      >
+        
         <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse" />
+          <div
+            className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] rounded-full"
+            style={{
+              background: "var(--glow-purple)",
+              filter: "blur(120px)",
+              animation: "pulse 6s ease-in-out infinite",
+            }}
+          />
+          <div
+            className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] rounded-full"
+            style={{
+              background: "var(--glow-blue)",
+              filter: "blur(120px)",
+              animation: "pulse 8s ease-in-out infinite 2s",
+            }}
+          />
         </div>
 
         <div className="max-w-7xl mx-auto z-10 relative">
           <DashboardHeader />
-
           <DashboardClient data={data} />
         </div>
+
+        <footer
+          className="max-w-7xl mx-auto mt-12 pt-6 text-center text-xs font-mono"
+          style={{
+            borderTop: "1px solid var(--border-subtle)",
+            color: "var(--text-muted)",
+          }}
+        >
+          Developer Intelligence Dashboard · Data refreshes every hour · Built
+          with Next.js
+        </footer>
       </main>
     </SearchProvider>
   );
